@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Project Pulse</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <main class="dashboard" aria-labelledby="dashboard-title">
+      <header class="dashboard-header">
+        <div class="dashboard-heading">
+          <p class="dashboard-eyebrow">Contributor dashboard</p>
+          <h1 id="dashboard-title" class="dashboard-title">Project Pulse</h1>
+          <p id="dashboard-summary" class="dashboard-description">Loading project summary.</p>
+        </div>
+      </header>
+
+      <section id="dashboard-overview" class="dashboard-overview" aria-label="Project overview" hidden></section>
+
+      <section class="dashboard-section" aria-labelledby="projects-title" aria-describedby="dashboard-summary">
+        <div class="section-heading">
+          <h2 id="projects-title" class="section-title">Active Projects</h2>
+          <p id="project-count" class="section-meta" aria-live="polite"></p>
+        </div>
+
+        <div id="loading-state" class="dashboard-state" data-state="loading" role="status" aria-live="polite">
+          <p class="dashboard-state-title">Loading project data</p>
+          <p class="dashboard-state-message">Checking project-data.json for the latest project records.</p>
+        </div>
+
+        <div id="empty-state" class="dashboard-state" data-state="empty" hidden>
+          <p class="dashboard-state-title">No projects available</p>
+          <p class="dashboard-state-message">Add records to project-data.json to populate the dashboard.</p>
+        </div>
+
+        <div id="error-state" class="dashboard-state" data-state="error" role="alert" hidden>
+          <p class="dashboard-state-title">Project data could not be loaded</p>
+          <p class="dashboard-state-message">Check that project-data.json is valid and contains a projects array.</p>
+        </div>
+
+        <div id="project-list" class="project-grid" aria-live="polite"></div>
+      </section>
+    </main>
+
+    <script>
+      const dashboardSummary = document.querySelector('#dashboard-summary');
+      const dashboardOverview = document.querySelector('#dashboard-overview');
+      const projectCount = document.querySelector('#project-count');
+      const projectList = document.querySelector('#project-list');
+      const loadingState = document.querySelector('#loading-state');
+      const emptyState = document.querySelector('#empty-state');
+      const errorState = document.querySelector('#error-state');
+
+      const formatClassToken = (value) => String(value)
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-|-$/g, '') || 'unspecified';
+
+      const normalizeStatusToken = (status) => {
+        const token = formatClassToken(status);
+        const statusAliases = {
+          'needs-attention': 'at-risk'
+        };
+
+        return statusAliases[token] || token;
+      };
+
+      const createBadge = (text, className, dataName, dataValue) => {
+        const badge = document.createElement('span');
+        badge.className = className;
+        badge.dataset[dataName] = dataValue;
+        badge.textContent = text;
+        return badge;
+      };
+
+      const createOverviewItem = (label, value) => {
+        const item = document.createElement('div');
+        item.className = 'overview-item';
+
+        const labelElement = document.createElement('span');
+        labelElement.className = 'overview-label';
+        labelElement.textContent = label;
+
+        const valueElement = document.createElement('span');
+        valueElement.className = 'overview-value';
+        valueElement.textContent = value;
+
+        item.append(labelElement, valueElement);
+        return item;
+      };
+
+      const renderOverview = (projects) => {
+        const highPriorityCount = projects.filter((project) => formatClassToken(project.priority) === 'high').length;
+        const attentionCount = projects.filter((project) => ['at-risk', 'blocked'].includes(normalizeStatusToken(project.status))).length;
+
+        dashboardOverview.replaceChildren(
+          createOverviewItem('Projects', projects.length),
+          createOverviewItem('High priority', highPriorityCount),
+          createOverviewItem('Needs attention', attentionCount)
+        );
+        dashboardOverview.hidden = false;
+      };
+
+      const createProjectCard = (project) => {
+        const statusToken = normalizeStatusToken(project.status);
+        const priorityToken = formatClassToken(project.priority);
+
+        const article = document.createElement('article');
+        article.className = `project-card status-${statusToken} priority-${priorityToken}`;
+        article.dataset.status = statusToken;
+        article.dataset.priority = priorityToken;
+
+        const header = document.createElement('div');
+        header.className = 'project-card-header';
+
+        const headingGroup = document.createElement('div');
+        headingGroup.className = 'project-card-heading';
+
+        const heading = document.createElement('h3');
+        heading.className = 'project-name';
+        heading.textContent = project.name;
+
+        const owner = document.createElement('p');
+        owner.className = 'project-owner';
+        owner.textContent = `Owner: ${project.owner}`;
+
+        headingGroup.append(heading, owner);
+
+        const signals = document.createElement('div');
+        signals.className = 'project-signals';
+        signals.append(
+          createBadge(project.status, 'status-badge', 'status', statusToken),
+          createBadge(project.priority, 'priority-badge', 'priority', priorityToken)
+        );
+
+        const summary = document.createElement('p');
+        summary.className = 'project-summary';
+        summary.textContent = project.summary;
+
+        const footer = document.createElement('footer');
+        footer.className = 'project-card-footer';
+
+        const activityLabel = document.createElement('span');
+        activityLabel.className = 'activity-label';
+        activityLabel.textContent = 'Recent activity';
+
+        const activityText = document.createElement('span');
+        activityText.className = 'activity-text';
+        activityText.textContent = project.recentActivity;
+
+        footer.append(activityLabel, activityText);
+        header.append(headingGroup, signals);
+        article.append(header, summary, footer);
+        return article;
+      };
+
+      const isProjectRecord = (project) => project
+        && typeof project.name === 'string'
+        && typeof project.owner === 'string'
+        && typeof project.status === 'string'
+        && typeof project.recentActivity === 'string'
+        && typeof project.priority === 'string'
+        && typeof project.summary === 'string';
+
+      const showError = () => {
+        loadingState.hidden = true;
+        emptyState.hidden = true;
+        errorState.hidden = false;
+        dashboardOverview.hidden = true;
+        projectCount.textContent = '';
+      };
+
+      fetch('project-data.json')
+        .then((response) => {
+          if (!response.ok) {
+            throw new Error(`Project data request failed: ${response.status}`);
+          }
+
+          return response.json();
+        })
+        .then((data) => {
+          if (!data || !Array.isArray(data.projects)) {
+            throw new Error('Project data must include a top-level projects array.');
+          }
+
+          const projects = data.projects;
+          if (!projects.every(isProjectRecord)) {
+            throw new Error('Each project must include name, owner, status, recentActivity, priority, and summary.');
+          }
+
+          loadingState.hidden = true;
+          errorState.hidden = true;
+
+          if (typeof data.summary === 'string' && data.summary.trim()) {
+            dashboardSummary.textContent = data.summary;
+          } else {
+            dashboardSummary.textContent = 'A lightweight scan of current project ownership, momentum, and priority.';
+          }
+
+          if (projects.length === 0) {
+            emptyState.hidden = false;
+            projectCount.textContent = '0 projects';
+            dashboardOverview.hidden = true;
+            return;
+          }
+
+          emptyState.hidden = true;
+          projectCount.textContent = `${projects.length} ${projects.length === 1 ? 'project' : 'projects'}`;
+          renderOverview(projects);
+          projectList.replaceChildren(...projects.map(createProjectCard));
+        })
+        .catch(showError);
+    </script>
+  </body>
+</html>

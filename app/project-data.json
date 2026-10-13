@@ -1,0 +1,37 @@
+{
+  "summary": "Project Pulse highlights active work, accountable owners, current status, recent movement, and priority so contributors can quickly choose where to help next.",
+  "projects": [
+    {
+      "name": "Docs Refresh",
+      "owner": "Mona",
+      "status": "In review",
+      "recentActivity": "Contributor setup notes were revised and sent to reviewers.",
+      "priority": "High",
+      "summary": "Tightens the onboarding path so new contributors can get productive with fewer handoffs."
+    },
+    {
+      "name": "Release Readiness",
+      "owner": "Ari",
+      "status": "On track",
+      "recentActivity": "Regression checklist completed for the dashboard workflow.",
+      "priority": "Medium",
+      "summary": "Coordinates final validation tasks before the next learning module ships."
+    },
+    {
+      "name": "Feedback Loop",
+      "owner": "Sam",
+      "status": "Needs attention",
+      "recentActivity": "Three learner comments were grouped into accessibility and copy follow-ups.",
+      "priority": "High",
+      "summary": "Turns participant feedback into clear improvements for the exercise experience."
+    },
+    {
+      "name": "Metrics Snapshot",
+      "owner": "Lee",
+      "status": "Planned",
+      "recentActivity": "Initial measures were drafted for completion rate and support requests.",
+      "priority": "Low",
+      "summary": "Defines lightweight signals for spotting where contributors need better guidance."
+    }
+  ]
+}
